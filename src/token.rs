@@ -3,7 +3,7 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub struct Token {
     token_type: TokenType,
-    lexeme: String,
+    pub lexeme: String,
     literal: Literal,
     line: usize,
 }
@@ -12,7 +12,8 @@ pub struct Token {
 pub enum Literal {
     String(String),
     Number(f64),
-    Nil,
+    Boolean(bool),
+    None,
 }
 
 impl Token {

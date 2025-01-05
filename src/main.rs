@@ -1,3 +1,5 @@
+mod ast_printer;
+mod expression;
 mod scanner;
 mod token;
 
@@ -9,7 +11,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::{env, fs, process};
 
 static ERROR_FLAG: AtomicBool = AtomicBool::new(false);
-// static mut ERROR_FLAG: bool = false;
 
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");

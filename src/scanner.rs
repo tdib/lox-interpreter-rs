@@ -33,7 +33,7 @@ impl Scanner {
         self.tokens.push(Token::new(
             TokenType::Eof,
             "".to_string(),
-            Literal::Nil,
+            Literal::None,
             self.line,
         ));
         self.tokens.clone()
@@ -115,7 +115,7 @@ impl Scanner {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_with_value(token_type, Literal::Nil);
+        self.add_token_with_value(token_type, Literal::None);
     }
 
     // TODO: Rename this to something better
@@ -176,7 +176,14 @@ impl Scanner {
 
         let identifier = self.source[self.start..self.current].to_string();
         let identifier_token_type = KEYWORDS.get(&identifier).unwrap_or(&TokenType::Identifier);
-        self.add_token(*identifier_token_type);
+
+        match identifier_token_type {
+            TokenType::True => self.add_token_with_value(TokenType::True, Literal::Boolean(true)),
+            TokenType::False => {
+                self.add_token_with_value(TokenType::False, Literal::Boolean(false))
+            }
+            _ => self.add_token(*identifier_token_type),
+        }
     }
 
     fn is_at_end(&self) -> bool {
