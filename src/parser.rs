@@ -184,7 +184,7 @@ impl Parser {
             }
 
             _ => Err(ParseError::new(format!(
-                "Token {} parsing was unhandled.",
+                "Token {:?} parsing was unhandled.",
                 self.peek()
             ))),
         };
@@ -197,7 +197,6 @@ impl Parser {
     }
 
     fn peek_previous(&self) -> Token {
-        println!("current: {}", self.current);
         self.tokens
             .get(self.current - 1)
             .unwrap_or_else(|| panic!("Failed to get token at index {}", self.current))
