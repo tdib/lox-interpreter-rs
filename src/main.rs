@@ -2,6 +2,7 @@ mod ast_printer;
 mod expression;
 mod scanner;
 mod token;
+mod util;
 
 use scanner::Scanner;
 use token::Token;

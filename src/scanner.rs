@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::lox_error;
 use crate::token::{Literal, Token, TokenType};
+use crate::util::GenericScanner;
 
 use lazy_static::lazy_static;
 
@@ -40,7 +41,7 @@ impl Scanner {
     }
 
     fn scan_token(&mut self) {
-        let c = self.advance_single_char();
+        let c = self.consume();
         match c {
             '(' => self.add_token(TokenType::LeftParen),
             ')' => self.add_token(TokenType::RightParen),
@@ -52,7 +53,7 @@ impl Scanner {
             ';' => self.add_token(TokenType::Semicolon),
             '*' => self.add_token(TokenType::Star),
             '!' => {
-                let token_type = if self.check_next('=') {
+                let token_type = if self.check_and_consume(&['=']) {
                     TokenType::BangEqual
                 } else {
                     TokenType::Bang
@@ -60,7 +61,7 @@ impl Scanner {
                 self.add_token(token_type);
             }
             '=' => {
-                let token_type = if self.check_next('=') {
+                let token_type = if self.check_and_consume(&['=']) {
                     TokenType::EqualEqual
                 } else {
                     TokenType::Equal
@@ -68,7 +69,7 @@ impl Scanner {
                 self.add_token(token_type);
             }
             '<' => {
-                let token_type = if self.check_next('=') {
+                let token_type = if self.check_and_consume(&['=']) {
                     TokenType::LessEqual
                 } else {
                     TokenType::Less
@@ -76,7 +77,7 @@ impl Scanner {
                 self.add_token(token_type);
             }
             '>' => {
-                let token_type = if self.check_next('=') {
+                let token_type = if self.check_and_consume(&['=']) {
                     TokenType::GreaterEqual
                 } else {
                     TokenType::Greater
@@ -84,10 +85,10 @@ impl Scanner {
                 self.add_token(token_type);
             }
             '/' => {
-                if self.check_next('/') {
+                if self.check_and_consume(&['/']) {
                     // We have encountered a comment so we will scan until we reach the end of the line
                     while self.peek() != '\n' && !self.is_at_end() {
-                        self.advance_single_char();
+                        self.consume();
                     }
                 } else {
                     self.add_token(TokenType::Slash);
@@ -118,7 +119,6 @@ impl Scanner {
         self.add_token_with_value(token_type, Literal::None);
     }
 
-    // TODO: Rename this to something better
     fn add_token_with_value(&mut self, token_type: TokenType, literal: Literal) {
         let text = self.source[self.start..self.current].to_string();
         self.tokens
@@ -131,7 +131,7 @@ impl Scanner {
             if self.peek() == '\n' {
                 self.line += 1;
             }
-            self.advance_single_char();
+            self.consume();
         }
 
         // If we hit this, it means we have an unclosed quote
@@ -140,7 +140,7 @@ impl Scanner {
         }
 
         // Consume closing quote
-        self.advance_single_char();
+        self.consume();
 
         // Trim the quotes off
         let string = self.source[self.start + 1..self.current - 1].to_string();
@@ -149,16 +149,16 @@ impl Scanner {
 
     fn parse_number(&mut self) {
         while self.peek().is_ascii_digit() {
-            self.advance_single_char();
+            self.consume();
         }
 
         // Look for a fractional part
         if self.peek() == '.' && self.peek_next().is_ascii_digit() {
             // Consume the period
-            self.advance_single_char();
+            self.consume();
 
             while self.peek().is_ascii_digit() {
-                self.advance_single_char();
+                self.consume();
             }
         }
 
@@ -171,7 +171,7 @@ impl Scanner {
 
     fn parse_identifier(&mut self) {
         while Scanner::is_valid_identifier_char(self.peek()) {
-            self.advance_single_char();
+            self.consume();
         }
 
         let identifier = self.source[self.start..self.current].to_string();
@@ -183,41 +183,6 @@ impl Scanner {
                 self.add_token_with_value(TokenType::False, Literal::Boolean(false))
             }
             _ => self.add_token(*identifier_token_type),
-        }
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
-    }
-
-    fn check_next(&mut self, expected_next: char) -> bool {
-        if self.is_at_end() || self.get_current_char() != expected_next {
-            false
-        } else {
-            self.current += 1;
-            true
-        }
-    }
-
-    fn advance_single_char(&mut self) -> char {
-        let curr_char = self.get_current_char();
-        self.current += 1;
-        curr_char
-    }
-
-    fn peek(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            self.get_current_char()
-        }
-    }
-
-    fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
-            '\0'
-        } else {
-            self.get_nth_char(self.current + 1)
         }
     }
 
@@ -234,6 +199,47 @@ impl Scanner {
 
     fn is_valid_identifier_char(c: char) -> bool {
         c.is_ascii_alphanumeric() || c == '_'
+    }
+}
+
+impl GenericScanner<char> for Scanner {
+    fn is_at_end(&self) -> bool {
+        self.current >= self.source.len()
+    }
+
+    fn consume(&mut self) -> char {
+        let curr_char = self.get_current_char();
+        self.current += 1;
+        curr_char
+    }
+
+    fn check_and_consume(&mut self, expected: &[char]) -> bool {
+        if self.is_at_end()
+            || expected
+                .iter()
+                .any(|expected| self.get_current_char() != *expected)
+        {
+            false
+        } else {
+            self.current += 1;
+            true
+        }
+    }
+
+    fn peek(&self) -> char {
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.get_current_char()
+        }
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() {
+            '\0'
+        } else {
+            self.get_nth_char(self.current + 1)
+        }
     }
 }
 
