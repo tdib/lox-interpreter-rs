@@ -1,20 +1,20 @@
 use crate::expression::Expression;
 use crate::token::Literal;
 
-pub trait Printer {
-    fn to_string(expression: Expression) -> String;
+pub trait AstPrinter {
+    fn format_ast(expression: &Expression) -> String;
 }
 
-impl Printer for Expression {
-    fn to_string(expression: Expression) -> String {
+impl AstPrinter for Expression {
+    fn format_ast(expression: &Expression) -> String {
         match expression {
             Expression::Binary {
                 left,
                 operator,
                 right,
-            } => parenthesise(operator.lexeme, &[*left, *right]),
+            } => parenthesise(operator.lexeme.clone(), &[*left.clone(), *right.clone()]),
             Expression::Grouping { expression } => {
-                parenthesise("group".to_string(), &[*expression])
+                parenthesise("group".to_string(), &[*expression.clone()])
             }
             Expression::Literal { value } => match value {
                 Literal::String(str) => str.to_string(),
@@ -22,7 +22,9 @@ impl Printer for Expression {
                 Literal::Boolean(bool) => bool.to_string(),
                 Literal::None => "nil".to_string(),
             },
-            Expression::Unary { operator, right } => parenthesise(operator.lexeme, &[*right]),
+            Expression::Unary { operator, right } => {
+                parenthesise(operator.lexeme.clone(), &[*right.clone()])
+            }
         }
     }
 }
@@ -34,7 +36,7 @@ fn parenthesise(name: String, expressions: &[Expression]) -> String {
 
     for expression in expressions {
         builder.push(' ');
-        builder.push_str(&Expression::to_string(expression.clone()))
+        builder.push_str(&expression.to_string())
     }
 
     builder.push(')');

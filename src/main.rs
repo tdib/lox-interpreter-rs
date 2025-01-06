@@ -1,8 +1,10 @@
 mod expression;
+mod parser;
 mod scanner;
 mod token;
 mod util;
 
+use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 
@@ -45,7 +47,6 @@ fn run_file(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-// NOTE: This is called runPrompt in crafting interpreters
 fn run_repl() -> io::Result<()> {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
@@ -75,15 +76,31 @@ fn run(source: String) {
     let mut scanner = Scanner::new(source);
     let tokens: Vec<Token> = scanner.scan_tokens();
 
-    tokens.iter().for_each(|token| println!("{:?}", token));
+    let mut parser = Parser::new(tokens);
+    let expression = parser.parse();
+
+    if get_error_flag() {
+        return;
+    }
+
+    println!("{}", expression.expect("Something went wrong"));
 }
 
-pub fn lox_error(line: usize, message: &str) {
-    report(line, "", message);
+pub fn lox_generic_error(line: usize, message: &str) {
+    report_error(line, None, message);
 }
 
-fn report(line: usize, r#where: &str, message: &str) {
-    eprintln!("[line: {}] Error {}: {}", line, r#where, message);
+pub fn report_error(line: usize, r#where: Option<&str>, message: &str) {
+    if r#where.is_none() {
+        eprintln!("[line: {}] Error: {}", line, message);
+    } else {
+        eprintln!(
+            "[line: {}] Error {}: {}",
+            line,
+            r#where.expect("Error location not provided"),
+            message
+        );
+    }
     set_error_flag(true);
 }
 

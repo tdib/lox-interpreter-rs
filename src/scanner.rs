@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lox_error;
+use crate::lox_generic_error;
 use crate::token::{Literal, Token, TokenType};
 use crate::util::GenericScanner;
 
@@ -111,7 +111,7 @@ impl Scanner {
             // TODO: Dot?
             '.' => self.add_token(TokenType::Dot),
 
-            _ => lox_error(self.line, &format!("Unexpected character '{c}'")),
+            _ => lox_generic_error(self.line, &format!("Unexpected character '{c}'")),
         };
     }
 
@@ -136,7 +136,7 @@ impl Scanner {
 
         // If we hit this, it means we have an unclosed quote
         if self.is_at_end() {
-            lox_error(self.line, "Unterminated string.");
+            lox_generic_error(self.line, "Unterminated string.");
         }
 
         // Consume closing quote
@@ -202,7 +202,7 @@ impl Scanner {
     }
 }
 
-impl GenericScanner<char> for Scanner {
+impl GenericScanner<char, char> for Scanner {
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
