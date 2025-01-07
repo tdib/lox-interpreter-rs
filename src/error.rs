@@ -35,7 +35,6 @@ pub fn parse_error(token: Token, message: String) {
 }
 
 pub fn runtime_error(error: RuntimeError) {
-    // eprintln!("{}\n[line {}]", error.message, error.token.line);
     lox_generic_error(error.token.line, &error.message);
     set_runtime_error_flag(true);
 }

@@ -12,10 +12,8 @@ impl AstPrinter for Expression {
                 left,
                 operator,
                 right,
-            } => parenthesise(operator.lexeme.clone(), &[*left.clone(), *right.clone()]),
-            Expression::Grouping { expression } => {
-                parenthesise("group".to_string(), &[*expression.clone()])
-            }
+            } => parenthesise(&operator.lexeme, &[*left.clone(), *right.clone()]),
+            Expression::Grouping { expression } => parenthesise("group", &[*expression.clone()]),
             Expression::Literal { value } => match value {
                 Literal::String(str) => str.to_string(),
                 Literal::Number(num) => num.to_string(),
@@ -23,16 +21,16 @@ impl AstPrinter for Expression {
                 Literal::None => "nil".to_string(),
             },
             Expression::Unary { operator, right } => {
-                parenthesise(operator.lexeme.clone(), &[*right.clone()])
+                parenthesise(&operator.lexeme, &[*right.clone()])
             }
         }
     }
 }
 
-fn parenthesise(name: String, expressions: &[Expression]) -> String {
+fn parenthesise(name: &str, expressions: &[Expression]) -> String {
     let mut builder = String::new();
     builder.push('(');
-    builder.push_str(&name);
+    builder.push_str(name);
 
     for expression in expressions {
         builder.push(' ');
