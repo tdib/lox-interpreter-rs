@@ -55,6 +55,9 @@ impl Interpreter {
                         (Value::String(left_str), Value::String(right_str)) => {
                             Ok(Value::String(format!("{}{}", left_str, right_str)))
                         }
+                        (Value::String(left_str), Value::Number(right_num)) => {
+                            Ok(Value::String(format!("{}{}", left_str, right_num)))
+                        }
                         _ => Err(RuntimeError::new(
                             format!(
                                 "Operands '{}' and '{}' must both be numbers or strings.",
