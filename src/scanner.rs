@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lox_generic_error;
+use crate::error::lox_generic_error;
 use crate::token::{Literal, Token, TokenType};
 use crate::util::GenericScanner;
 

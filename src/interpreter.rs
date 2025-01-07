@@ -1,83 +1,136 @@
 use std::fmt::Display;
 
+use crate::error::{runtime_error, RuntimeError, RuntimeResult};
 use crate::expression::Expression;
-use crate::token::{Literal, TokenType};
+use crate::token::{Literal, Token, TokenType};
 
-struct Interpreter;
+pub struct Interpreter;
 
 impl Interpreter {
-    fn evaluate(&self, expression: Expression) -> Value {
+    pub fn new() -> Self {
+        Interpreter {}
+    }
+
+    pub fn interpret(&self, expression: Expression) {
+        let value = Self::evaluate(expression);
+        match value {
+            Ok(value) => println!("{}", value),
+            Err(error) => runtime_error(error),
+        }
+    }
+
+    fn evaluate(expression: Expression) -> RuntimeResult<Value> {
         match expression {
             Expression::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = self.evaluate(*left);
-                let right = self.evaluate(*right);
-
-                let left_num = match left {
-                    Value::Number(num) => num,
-                    _ => unreachable!("Left part of binary expression must be a number"),
-                };
-
-                let right_num = match right {
-                    Value::Number(num) => num,
-                    _ => unreachable!("right part of binary expression must be a number"),
-                };
+                let left = Self::evaluate(*left)?;
+                let right = Self::evaluate(*right)?;
 
                 match operator.token_type {
                     // Arithmetic
-                    TokenType::Minus => Value::Number(left_num - right_num),
-                    TokenType::Slash => Value::Number(left_num / right_num),
-                    TokenType::Star => Value::Number(left_num * right_num),
+                    TokenType::Minus => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Number(l_num - r_num))
+                    }
+                    TokenType::Slash => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Number(l_num / r_num))
+                    }
+                    TokenType::Star => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Number(l_num * r_num))
+                    }
                     TokenType::Plus => match (&left, &right) {
                         (Value::Number(left_num), Value::Number(right_num)) => {
-                            Value::Number(left_num + right_num)
+                            Ok(Value::Number(left_num + right_num))
                         }
                         (Value::String(left_str), Value::String(right_str)) => {
-                            Value::String(format!("{}{}", left_str, right_str))
+                            Ok(Value::String(format!("{}{}", left_str, right_str)))
                         }
-                        _ => unreachable!(
-                            "Failed to apply {} operator on {} and {}",
-                            operator.lexeme, left, right
-                        ),
+                        _ => Err(RuntimeError::new(
+                            format!(
+                                "Operands '{}' and '{}' must both be numbers or strings.",
+                                left, right,
+                            ),
+                            operator,
+                        )),
                     },
 
                     // Comparison
-                    TokenType::Greater => Value::Boolean(left_num > right_num),
-                    TokenType::GreaterEqual => Value::Boolean(left_num >= right_num),
-                    TokenType::Less => Value::Boolean(left_num < right_num),
-                    TokenType::LessEqual => Value::Boolean(left_num <= right_num),
+                    TokenType::Greater => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Boolean(l_num > r_num))
+                    }
+                    TokenType::GreaterEqual => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Boolean(l_num >= r_num))
+                    }
+                    TokenType::Less => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Boolean(l_num < r_num))
+                    }
+                    TokenType::LessEqual => {
+                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
+                        Ok(Value::Boolean(l_num <= r_num))
+                    }
 
                     // Equality
-                    TokenType::BangEqual => Value::Boolean(left != right),
-                    TokenType::EqualEqual => Value::Boolean(left == right),
+                    TokenType::BangEqual => Ok(Value::Boolean(left != right)),
+                    TokenType::EqualEqual => Ok(Value::Boolean(left == right)),
 
-                    _ => unreachable!(),
+                    _ => unreachable!(
+                        "Operator '{}' was not handled as a binary expression",
+                        operator
+                    ),
                 }
             }
-            Expression::Grouping { expression } => self.evaluate(*expression),
+            Expression::Grouping { expression } => Self::evaluate(*expression),
             Expression::Literal { value } => match value {
-                Literal::String(str) => Value::String(str),
-                Literal::Number(num) => Value::Number(num),
-                Literal::Boolean(bool) => Value::Boolean(bool),
-                Literal::None => Value::Nil,
+                Literal::String(str) => Ok(Value::String(str)),
+                Literal::Number(num) => Ok(Value::Number(num)),
+                Literal::Boolean(bool) => Ok(Value::Boolean(bool)),
+                Literal::None => Ok(Value::Nil),
             },
             Expression::Unary { operator, right } => {
-                let right_val = self.evaluate(*right);
+                let right_val = Self::evaluate(*right)?;
                 match operator.token_type {
-                    TokenType::Bang => Value::Boolean(!right_val.is_truthy()),
+                    TokenType::Bang => Ok(Value::Boolean(!right_val.is_truthy())),
                     TokenType::Minus => {
                         if let Value::Number(num) = right_val {
-                            Value::Number(-num)
+                            Ok(Value::Number(-num))
                         } else {
-                            panic!("Tried to apply unsupported unary operation")
+                            Err(RuntimeError::new(
+                                format!(
+                                    "Operand '{}' must be a number to apply '{}' operator",
+                                    right_val, operator
+                                ),
+                                operator,
+                            ))
                         }
                     }
-                    _ => unreachable!(),
+                    _ => unreachable!(
+                        "Operator '{}' was not handled as a unary expression",
+                        operator
+                    ),
                 }
             }
+        }
+    }
+
+    fn check_number_operands(
+        operator: Token,
+        left: Value,
+        right: Value,
+    ) -> RuntimeResult<(f64, f64)> {
+        match (&left, &right) {
+            (Value::Number(left_num), Value::Number(right_num)) => Ok((*left_num, *right_num)),
+            _ => Err(RuntimeError::new(
+                format!("Operands '{}' and '{}' must both be numbers.", left, right),
+                operator,
+            )),
         }
     }
 }
@@ -88,6 +141,16 @@ enum Value {
     Number(f64),
     Boolean(bool),
     Nil,
+}
+
+impl Value {
+    fn is_truthy(&self) -> bool {
+        match self {
+            Value::String(_) | Value::Number(_) => false,
+            Value::Boolean(bool) => !bool,
+            Value::Nil => false,
+        }
+    }
 }
 
 impl Display for Value {
@@ -102,15 +165,5 @@ impl Display for Value {
                 Self::Nil => "nil".to_string(),
             }
         )
-    }
-}
-
-impl Value {
-    fn is_truthy(&self) -> bool {
-        match self {
-            Value::String(_) | Value::Number(_) => false,
-            Value::Boolean(bool) => !bool,
-            Value::Nil => false,
-        }
     }
 }

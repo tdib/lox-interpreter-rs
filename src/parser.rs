@@ -1,5 +1,5 @@
+use crate::error::{parse_error, ParseError, ParseResult};
 use crate::expression::Expression;
-use crate::report_error;
 use crate::token::{Literal, Token, TokenType};
 use crate::util::GenericScanner;
 
@@ -13,35 +13,23 @@ impl Parser {
         Parser { tokens, current: 0 }
     }
 
-    fn parse_error(token: Token, message: String) {
-        if token.token_type == TokenType::Eof {
-            report_error(token.line, Some("at end of input"), &message)
-        } else {
-            report_error(
-                token.line,
-                Some(&format!("at '{}'", token.lexeme)),
-                &message,
-            )
-        }
-    }
-
     pub fn parse(&mut self) -> Option<Expression> {
         match self.parse_expression() {
             Ok(expression) => Some(expression),
 
-            Err(parse_error) => {
-                Parser::parse_error(self.peek(), parse_error.message);
+            Err(e) => {
+                parse_error(self.peek(), e.message);
                 self.synchronise();
                 None
             }
         }
     }
 
-    fn parse_expression(&mut self) -> Result<Expression> {
+    fn parse_expression(&mut self) -> ParseResult<Expression> {
         self.parse_equality()
     }
 
-    fn parse_equality(&mut self) -> Result<Expression> {
+    fn parse_equality(&mut self) -> ParseResult<Expression> {
         let mut expression = self.parse_comparison()?;
 
         while self.check_and_consume(&[TokenType::BangEqual, TokenType::EqualEqual]) {
@@ -57,7 +45,7 @@ impl Parser {
         Ok(expression)
     }
 
-    fn parse_comparison(&mut self) -> Result<Expression> {
+    fn parse_comparison(&mut self) -> ParseResult<Expression> {
         let mut expression = self.parse_term()?;
 
         while self.check_and_consume(&[
@@ -78,7 +66,7 @@ impl Parser {
         Ok(expression)
     }
 
-    fn parse_term(&mut self) -> Result<Expression> {
+    fn parse_term(&mut self) -> ParseResult<Expression> {
         let mut expression = self.parse_factor()?;
 
         while self.check_and_consume(&[TokenType::Plus, TokenType::Minus]) {
@@ -94,7 +82,7 @@ impl Parser {
         Ok(expression)
     }
 
-    fn parse_factor(&mut self) -> Result<Expression> {
+    fn parse_factor(&mut self) -> ParseResult<Expression> {
         let mut expression = self.parse_unary()?;
 
         while self.check_and_consume(&[TokenType::Slash, TokenType::Star]) {
@@ -110,7 +98,7 @@ impl Parser {
         Ok(expression)
     }
 
-    fn parse_unary(&mut self) -> Result<Expression> {
+    fn parse_unary(&mut self) -> ParseResult<Expression> {
         if self.check_and_consume(&[TokenType::Bang, TokenType::Minus]) {
             let operator = self.peek_previous();
             let right = self.parse_unary()?;
@@ -123,7 +111,7 @@ impl Parser {
         }
     }
 
-    fn parse_literal_or_group(&mut self) -> Result<Expression> {
+    fn parse_literal_or_group(&mut self) -> ParseResult<Expression> {
         let curr_literal = self.peek().literal;
 
         let match_result = match self.peek().token_type {
@@ -184,8 +172,8 @@ impl Parser {
             }
 
             _ => Err(ParseError::new(format!(
-                "Token {:?} parsing was unhandled.",
-                self.peek()
+                "Token '{}' parsing was unhandled.",
+                self.peek().lexeme
             ))),
         };
 
@@ -231,17 +219,6 @@ impl Parser {
         }
     }
 }
-
-struct ParseError {
-    message: String,
-}
-
-impl ParseError {
-    fn new(message: String) -> Self {
-        ParseError { message }
-    }
-}
-type Result<T> = std::result::Result<T, ParseError>;
 
 impl GenericScanner<Token, TokenType> for Parser {
     fn is_at_end(&self) -> bool {

@@ -1,3 +1,4 @@
+mod error;
 mod expression;
 mod interpreter;
 mod parser;
@@ -5,30 +6,33 @@ mod scanner;
 mod token;
 mod util;
 
+use error::{get_error_flag, set_error_flag};
 use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 
+use interpreter::Interpreter;
 use std::io::{self, BufRead, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{env, fs, process};
-
-static ERROR_FLAG: AtomicBool = AtomicBool::new(false);
 
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     let args = env::args().collect::<Vec<String>>();
+    let interpreter = Interpreter::new();
     match args.len() {
         // Running the program standalone - open REPL
         1 => {
-            if let Err(e) = run_repl() {
+            if let Err(e) = run_repl(interpreter) {
                 eprintln!("Error while running REPL: {e}");
                 process::exit(74);
             }
         }
         // Providing a file - run given file
         2 => {
-            if let Err(e) = run_file(args.get(2).expect("Failed to get source code file name")) {
+            if let Err(e) = run_file(
+                interpreter,
+                args.get(2).expect("Failed to get source code file name"),
+            ) {
                 eprintln!("Error: {e}");
                 process::exit(74);
             }
@@ -41,14 +45,21 @@ fn main() {
     };
 }
 
-fn run_file(path: &str) -> io::Result<()> {
+fn run_file(interpreter: Interpreter, path: &str) -> io::Result<()> {
     let bytes = fs::read(path)?;
     let content = String::from_utf8_lossy(&bytes).to_string();
-    run(content);
+    run(&interpreter, content);
+
+    if error::get_error_flag() {
+        process::exit(65)
+    }
+    if error::get_runtime_error_flag() {
+        process::exit(70)
+    }
     Ok(())
 }
 
-fn run_repl() -> io::Result<()> {
+fn run_repl(interpreter: Interpreter) -> io::Result<()> {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
 
@@ -66,14 +77,14 @@ fn run_repl() -> io::Result<()> {
         }
 
         let trimmed_line = line.trim().to_string();
-        run(trimmed_line);
+        run(&interpreter, trimmed_line);
         set_error_flag(false);
     }
 
     Ok(())
 }
 
-fn run(source: String) {
+fn run(interpreter: &Interpreter, source: String) {
     let mut scanner = Scanner::new(source);
     let tokens: Vec<Token> = scanner.scan_tokens();
 
@@ -84,31 +95,5 @@ fn run(source: String) {
         return;
     }
 
-    println!("{}", expression.expect("Something went wrong"));
-}
-
-pub fn lox_generic_error(line: usize, message: &str) {
-    report_error(line, None, message);
-}
-
-pub fn report_error(line: usize, r#where: Option<&str>, message: &str) {
-    if r#where.is_none() {
-        eprintln!("[line: {}] Error: {}", line, message);
-    } else {
-        eprintln!(
-            "[line: {}] Error {}: {}",
-            line,
-            r#where.expect("Error location not provided"),
-            message
-        );
-    }
-    set_error_flag(true);
-}
-
-fn set_error_flag(value: bool) {
-    ERROR_FLAG.store(value, Ordering::SeqCst);
-}
-
-fn get_error_flag() -> bool {
-    ERROR_FLAG.load(Ordering::SeqCst)
+    interpreter.interpret(expression.expect("Something went wrong"));
 }
