@@ -220,7 +220,7 @@ impl Parser {
     }
 }
 
-impl GenericScanner<Token, TokenType> for Parser {
+impl GenericScanner<Token> for Parser {
     fn is_at_end(&self) -> bool {
         self.peek().token_type == TokenType::Eof
     }
@@ -231,10 +231,10 @@ impl GenericScanner<Token, TokenType> for Parser {
         token
     }
 
-    fn check_and_consume(&mut self, expected: &[TokenType]) -> bool {
+    fn check_and_consume<MatchType: PartialEq<Token>>(&mut self, expected: &[MatchType]) -> bool {
         if expected
             .iter()
-            .any(|expected_token_type| self.peek().token_type == *expected_token_type)
+            .any(|expected_token_type| *expected_token_type == self.peek())
         {
             self.consume();
             true

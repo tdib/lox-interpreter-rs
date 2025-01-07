@@ -202,7 +202,7 @@ impl Scanner {
     }
 }
 
-impl GenericScanner<char, char> for Scanner {
+impl GenericScanner<char> for Scanner {
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
@@ -213,11 +213,11 @@ impl GenericScanner<char, char> for Scanner {
         curr_char
     }
 
-    fn check_and_consume(&mut self, expected: &[char]) -> bool {
+    fn check_and_consume<MatchType: PartialEq<char>>(&mut self, expected: &[MatchType]) -> bool {
         if self.is_at_end()
             || expected
                 .iter()
-                .any(|expected| self.get_current_char() != *expected)
+                .any(|expected| *expected != self.get_current_char())
         {
             false
         } else {

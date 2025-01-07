@@ -1,4 +1,4 @@
-pub trait GenericScanner<T, MatchType> {
+pub trait GenericScanner<T> {
     /// Has the scanner reached the last token to be scanned?
     fn is_at_end(&self) -> bool;
 
@@ -6,7 +6,7 @@ pub trait GenericScanner<T, MatchType> {
     fn consume(&mut self) -> T;
 
     /// Check if the current token is one of the expected, and if so, consume the token
-    fn check_and_consume(&mut self, expected: &[MatchType]) -> bool;
+    fn check_and_consume<MatchType: PartialEq<T>>(&mut self, expected: &[MatchType]) -> bool;
 
     /// Look at the current character without consuming
     fn peek(&self) -> T;

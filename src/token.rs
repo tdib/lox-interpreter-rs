@@ -87,3 +87,9 @@ pub enum TokenType {
 
     Eof,
 }
+
+impl PartialEq<Token> for TokenType {
+    fn eq(&self, other: &Token) -> bool {
+        &other.token_type == self
+    }
+}
