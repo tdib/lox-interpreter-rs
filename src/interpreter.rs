@@ -36,8 +36,13 @@ impl Interpreter {
                         Ok(Value::Number(l_num - r_num))
                     }
                     TokenType::Slash => {
-                        let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
-                        Ok(Value::Number(l_num / r_num))
+                        let (l_num, r_num) =
+                            Self::check_number_operands(operator.clone(), left, right)?;
+                        if r_num == 0.0 {
+                            Err(RuntimeError::new("Division by zero".to_string(), operator))
+                        } else {
+                            Ok(Value::Number(l_num / r_num))
+                        }
                     }
                     TokenType::Star => {
                         let (l_num, r_num) = Self::check_number_operands(operator, left, right)?;
